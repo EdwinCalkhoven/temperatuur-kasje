@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klimaat Dashboard - Binnen & Buiten</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            --binnen-color: #e67e22; /* Oranje/Rood */
+            --buiten-color: #2980b9; /* Blauw */
+        }
+
+        body { background-color: var(--bg-color); font-family: 'Segoe UI', sans-serif; color: #333; }
+        .header-card { background: white; border-radius: 20px; padding: 20px; box-shadow: var(--card-shadow); margin: 30px 0; text-align: center; }
+        .main-card { background: white; border-radius: 20px; padding: 25px; box-shadow: var(--card-shadow); border: none; margin-bottom: 25px; }
+        
+        .stat-box { border: 1px solid #eee; border-radius: 15px; padding: 12px; height: 100%; background: #fff; }
+        .last-meting-box { border: 2px solid #d1f7e8; background-color: #f9fffb; }
+        
+        .label-sm { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: #7f8c8d; }
+        .temp-val { font-size: 1.8rem; font-weight: 800; margin: 0; }
+        .temp-binnen { color: var(--binnen-color); }
+        .temp-buiten { color: var(--buiten-color); }
+
+        .extreme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .extreme-item { font-size: 0.8rem; }
+        .min-label { color: #3498db; font-weight: bold; }
+        .max-label { color: #e74c3c; font-weight: bold; }
+        .ts-label { font-size: 0.6rem; color: #bdc3c7; display: block; }
+
+        .btn-group-custom { background: #e0e0e0; border-radius: 10px; padding: 5px; display: flex; margin-bottom: 20px; }
+        .btn-group-custom button { flex: 1; border: none; background: none; padding: 8px; border-radius: 8px; font-weight: 600; color: #7f8c8d; }
+        .btn-group-custom button.active { background: #e74c3c; color: white; }
+        
+        canvas { width: 100% !important; height: 400px !important; }
+        h5 { font-size: 0.9rem; font-weight: bold; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container pb-5">
+    <div class="header-card">
+        <h1>🏠 Kasje volkstuin monitor</h1>
+        <p>Monitoring van binnen- en buitentemperatuur</p>
+    </div>
+
+    <!-- Huidige Status -->
+    <div class="main-card">
+        <h4 class="mb-4">Huidige Status & Extremen</h4>
+        <div class="row g-3">
+            <!-- LIVE KAART -->
+            <div class="col-md-3">
+                <div class="stat-box last-meting-box text-center">
+                    <span class="label-sm">Laatste Meting</span>
+                    <div class="temp-val temp-binnen"><small>In:</small> <span id="curIn">--</span>°</div>
+                    <div class="temp-val temp-buiten"><small>Uit:</small> <span id="curUit">--</span>°</div>
+                    <div style="font-size: 0.7rem; color: #95a5a6;" id="curTs">--:--:--</div>
+                </div>
+            </div>
+
+            <!-- 24 UUR -->
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <h5>24 UUR EXTREMEN</h5>
+                    <div class="extreme-grid">
+                        <div class="extreme-item">
+                            <span class="label-sm">Binnen</span><br>
+                            <span class="min-label" id="inMin24">--</span> / <span class="max-label" id="inMax24">--</span>
+                        </div>
+                        <div class="extreme-item">
+                            <span class="label-sm">Buiten</span><br>
+                            <span class="min-label" id="uitMin24">--</span> / <span class="max-label" id="uitMax24">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WEEK -->
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <h5>WEEK EXTREMEN</h5>
+                    <div class="extreme-grid">
+                        <div class="extreme-item">
+                            <span class="label-sm">Binnen</span><br>
+                            <span class="min-label" id="inMinWeek">--</span> <span class="ts-label" id="inMinWeekTs"></span>
+                            <span class="max-label" id="inMaxWeek">--</span> <span class="ts-label" id="inMaxWeekTs"></span>
+                        </div>
+                        <div class="extreme-item">
+                            <span class="label-sm">Buiten</span><br>
+                            <span class="min-label" id="uitMinWeek">--</span> <span class="ts-label" id="uitMinWeekTs"></span>
+                            <span class="max-label" id="uitMaxWeek">--</span> <span class="ts-label" id="uitMaxWeekTs"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MAAND -->
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <h5>MAAND EXTREMEN</h5>
+                    <div class="extreme-grid">
+                        <div class="extreme-item">
+                            <span class="label-sm">Binnen</span><br>
+                            <span class="min-label" id="inMinMonth">--</span>
+                            <span class="max-label" id="inMaxMonth">--</span>
+                        </div>
+                        <div class="extreme-item">
+                            <span class="label-sm">Buiten</span><br>
+                            <span class="min-label" id="uitMinMonth">--</span>
+                            <span class="max-label" id="uitMaxMonth">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grafiek -->
+    <div class="main-card">
+        <div class="btn-group-custom">
+            <button id="btn24h" onclick="updateView('24h')">24 Uur</button>
+            <button id="btnWeek" class="active" onclick="updateView('week')">Week</button>
+            <button id="btnMonth" onclick="updateView('month')">Maand</button>
+        </div>
+        <canvas id="tempChart"></canvas>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.1.1/firebase-database-compat.js"></script>
+
+<script>
+    // --- CONFIG ---
+    const firebaseConfig = {
+        databaseURL: "https://home-data-85f5c-default-rtdb.europe-west1.firebasedatabase.app/",
+        // Vul hier je eigen overige Firebase velden aan (apiKey, etc)
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let rawData = [];
+    let view = 'week';
+
+    // --- CHART SETUP ---
+    const ctx = document.getElementById('tempChart').getContext('2d');
+    let chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'Binnen (°C)', data: [], borderColor: '#e67e22', backgroundColor: 'rgba(230, 126, 34, 0.1)', fill: true, tension: 0.3 },
+                { label: 'Buiten (°C)', data: [], borderColor: '#2980b9', backgroundColor: 'rgba(41, 128, 185, 0.1)', fill: true, tension: 0.3 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // --- DATA LADEN ---
+    db.ref('metingen').on('value', snap => {
+        const data = snap.val();
+        rawData = Object.values(data);
+        render();
+    });
+
+    function updateView(v) {
+        view = v;
+        document.querySelectorAll('.btn-group-custom button').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn' + v.charAt(0).toUpperCase() + v.slice(1)).classList.add('active');
+        render();
+    }
+
+    function render() {
+        if (!rawData.length) return;
+
+        const now = Date.now() / 1000;
+        const last = rawData[rawData.length - 1];
+
+        // 1. Live Update
+        document.getElementById('curIn').innerText = last.tempBinnen.toFixed(1);
+        document.getElementById('curUit').innerText = last.tempBuiten.toFixed(1);
+        document.getElementById('curTs').innerText = new Date(last.timestamp * 1000).toLocaleTimeString();
+
+        // 2. Bereken Extremen (Helper functie)
+        calcExtremes('24', now - 86400);
+        calcExtremes('Week', now - 604800);
+        calcExtremes('Month', now - 2592000);
+
+        // 3. Grafiek Filteren
+        let filterTs = now - 604800; // default week
+        if (view === '24h') filterTs = now - 86400;
+        if (view === 'month') filterTs = now - 2592000;
+
+        const filtered = rawData.filter(m => m.timestamp > filterTs);
+        chart.data.labels = filtered.map(m => {
+            const d = new Date(m.timestamp * 1000);
+            return view === '24h' ? d.getHours()+":00" : d.getDate()+"-"+(d.getMonth()+1);
+        });
+        chart.data.datasets[0].data = filtered.map(m => m.tempBinnen);
+        chart.data.datasets[1].data = filtered.map(m => m.tempBuiten);
+        chart.update();
+    }
+
+    function calcExtremes(id, tsLimit) {
+        const subset = rawData.filter(m => m.timestamp > tsLimit);
+        if (!subset.length) return;
+
+        const getStats = (key) => {
+            const vals = subset.map(m => m[key]);
+            const minVal = Math.min(...vals);
+            const maxVal = Math.max(...vals);
+            const minObj = subset.find(m => m[key] === minVal);
+            const maxObj = subset.find(m => m[key] === maxVal);
+            return { minVal, maxVal, minTs: minObj.timestamp, maxTs: maxObj.timestamp };
+        };
+
+        const binnen = getStats('tempBinnen');
+        const buiten = getStats('tempBuiten');
+
+        // Binnen UI
+        document.getElementById(`inMin${id}`).innerText = binnen.minVal.toFixed(1) + "°";
+        document.getElementById(`inMax${id}`).innerText = binnen.maxVal.toFixed(1) + "°";
+        // Buiten UI
+        document.getElementById(`uitMin${id}`).innerText = buiten.minVal.toFixed(1) + "°";
+        document.getElementById(`uitMax${id}`).innerText = buiten.maxVal.toFixed(1) + "°";
+
+        if (id === 'Week') {
+            document.getElementById('inMinWeekTs').innerText = fmtTs(binnen.minTs);
+            document.getElementById('inMaxWeekTs').innerText = fmtTs(binnen.maxTs);
+            document.getElementById('uitMinWeekTs').innerText = fmtTs(buiten.minTs);
+            document.getElementById('uitMaxWeekTs').innerText = fmtTs(buiten.maxTs);
+        }
+    }
+
+    function fmtTs(ts) {
+        const d = new Date(ts * 1000);
+        return d.toLocaleDateString('nl-NL', {day:'2-digit', month:'2-digit'}) + " " + d.getHours() + ":" + (d.getMinutes()<10?'0':'') + d.getMinutes();
+    }
+</script>
+
+</body>
+</html>
